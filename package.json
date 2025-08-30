@@ -1,0 +1,43 @@
+{
+  "name": "node-red-contrib-data-validation-engine",
+  "version": "0.1.0",
+  "description": "A simple rule-based data validation node for Node-RED (sheetsExist, sheetHasColumns) with UI builder and JSON config file support.",
+  "keywords": [
+    "node-red",
+    "node-red-contrib",
+    "validation",
+    "rules",
+    "excel",
+    "sheets",
+    "data-quality"
+  ],
+  "author": "Your Name <you@example.com>",
+  "license": "MIT",
+  "homepage": "https://github.com/AIOUBSAI/node-red-contrib-data-validation-engine#readme",
+  "bugs": {
+    "url": "https://github.com/AIOUBSAI/node-red-contrib-data-validation-engine/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AIOUBSAI/node-red-contrib-data-validation-engine.git"
+  },
+  "engines": {
+    "node": ">=14"
+  },
+  "node-red": {
+    "nodes": {
+      "data-validation-engine": "data-validation-engine.js"
+    }
+  },
+  "files": [
+    "data-validation-engine.js",
+    "data-validation-engine.html",
+    "README.md",
+    "LICENSE"
+  ],
+  "dependencies": {},
+  "devDependencies": {},
+  "publishConfig": {
+    "access": "public"
+  }
+}

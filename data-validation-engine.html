@@ -1,0 +1,489 @@
+<!-- data-validation-engine.html -->
+<style>
+  .dve .form-row label{display:block;margin-bottom:4px}
+  .dve .form-row input[type="text"],
+  .dve .form-row select{width:100%!important;box-sizing:border-box}
+  .dve .muted{opacity:.75;font-size:12px}
+  .dve .inline{display:flex;gap:8px;align-items:center}
+  .dve .inline>*{flex:1}
+  .dve .toolbar{display:flex;gap:8px;margin-top:6px;align-items:center}
+  .dve .toolbar .spacer{flex:1}
+  .dve table{width:100%;border-collapse:collapse}
+  .dve th,.dve td{padding:6px 4px;border-bottom:1px solid var(--nr-editor-border,#e3e3e3)}
+  .dve thead th{background:var(--nr-editor-button-background,#f6f6f6);font-weight:600}
+  .dve .right{text-align:right}
+  .dve .compact{max-width:1100px;margin:0 auto}
+  .dve .nr-disabled{opacity:.55;pointer-events:none}
+  .dve .error-field{outline:1px solid #e33;border-radius:3px}
+  
+  /* dialog sizing */
+  .dve-dialog .form-row{margin-bottom:8px}
+  .dve-dialog .inline>*{flex:1}
+
+  /* --- Dialog polish --- */
+  .dve-dialog {
+    --bg: var(--nr-editor-dialog-background, #fff);
+    --fg: var(--nr-editor-text-color, #222);
+    --muted: rgba(0,0,0,.55);
+    --b: var(--nr-editor-border, #e3e3e3);
+    --accent: var(--nr-primary-text-color, #e20000);
+    --card: var(--nr-editor-sidebar-background, #f8f9fb);
+    color: var(--fg);
+  }
+
+  /* make content breathe */
+  .dve-dialog .form-row { margin: 12px 0; }
+  .dve-dialog label {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .02em;
+    color: var(--muted);
+    display: inline-block;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+  }
+
+  /* inputs */
+  .dve-dialog input[type="text"],
+  .dve-dialog select {
+    width: 100% !important;
+    box-sizing: border-box;
+    background: var(--bg);
+    border: 1px solid var(--b);
+    border-radius: 10px;
+    padding: 8px 10px;
+    height: 36px;
+    outline: none;
+    transition: box-shadow .12s ease, border-color .12s ease;
+  }
+  .dve-dialog input[type="text"]:focus,
+  .dve-dialog select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 20%, transparent);
+  }
+
+  /* typedInput full width */
+  .dve-dialog .red-ui-typedInput,
+  .dve-dialog .red-ui-typedInput .red-ui-typedInput-input,
+  .dve-dialog .red-ui-typedInput input {
+    width: 100% !important;
+  }
+  .dve-dialog .red-ui-typedInput { height: 36px; }
+  .dve-dialog .red-ui-typedInput .red-ui-typedInput-input input {
+    height: 34px;
+    padding: 6px 10px;
+    border-radius: 10px;
+  }
+
+  /* rows that should look like cards */
+  .dve-dialog fieldset {
+    border: 1px solid var(--b);
+    border-radius: 12px;
+    background: var(--card);
+    padding: 10px 12px 14px;
+  }
+  .dve-dialog fieldset legend {
+    padding: 0 6px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* compact, responsive multi-column for the first line */
+  .dve-dialog .inline { display: grid; gap: 12px; }
+  @media (min-width: 960px) {
+    .dve-dialog .inline { grid-template-columns: repeat(3, minmax(220px, 1fr)); }
+    .dve-dialog #dve-row-sheet,
+    .dve-dialog #dve-row-reqSheets,
+    .dve-dialog #dve-row-reqCols { max-width: 820px; }
+  }
+
+  /* error highlight (when a required field is missing) */
+  .dve-dialog .error-field {
+    border-color: #e53935 !important;
+    box-shadow: 0 0 0 3px rgba(229,57,53,.15) !important;
+  }
+
+  /* dialog chrome */
+  .ui-dialog .ui-dialog-titlebar { border-bottom: 1px solid var(--b); }
+  .ui-dialog .ui-dialog-buttonpane { border-top: 1px solid var(--b); }
+</style>
+
+
+<script type="text/javascript">
+(function(){
+  const NODE_TYPE = "data-validation-engine";
+
+  const csvToArr = s => String(s||"").split(",").map(x=>x.trim()).filter(Boolean);
+  const arrToCsv = a => (Array.isArray(a)? a : []).join(", ");
+  const clone = x => JSON.parse(JSON.stringify(x));
+
+  function renderRules($tbody, rules){
+    $tbody.empty();
+    (rules||[]).forEach((r,idx)=>{
+      const sheet = r.type==="sheetHasColumns" ? (r.sheet || "") : "—";
+      const req   = r.type==="sheetsExist" ? arrToCsv(r.requiredSheets) : arrToCsv(r.requiredColumns);
+      const $tr = $(`
+        <tr>
+          <td>${r.id || ""}</td>
+          <td>${r.type}</td>
+          <td>${sheet}</td>
+          <td title="${req}">${req.length>64?req.slice(0,64)+"…":(req||"—")}</td>
+          <td>${r.level || ""}</td>
+          <td>${r.description || ""}</td>
+          <td class="right">
+            <button class="red-ui-button red-ui-button-small edit"><i class="fa fa-pencil"></i></button>
+            <button class="red-ui-button red-ui-button-small delete"><i class="fa fa-trash"></i></button>
+          </td>
+        </tr>
+      `);
+      $(".edit",$tr).on("click",()=>openRuleDialog($tbody, rules, idx));
+      $(".delete",$tr).on("click",()=>{ rules.splice(idx,1); renderRules($tbody, rules); });
+      $tbody.append($tr);
+    });
+  }
+
+  function openRuleDialog($tbody, rules, index){
+    const isNew = (index == null);
+    const current = isNew ? {
+      type:"sheetsExist", id:"", description:"", sheet:"",
+      requiredSheets:[], requiredColumns:[], level:"",
+      conditions:{ and:[{ attribute:"", operator:"==", rhsType:"str", value:"" }] }
+    } : clone(rules[index]);
+
+    const $dlg = $(`
+      <div class="dve-dialog">
+        <div class="form-row inline">
+          <div>
+            <label>Type</label>
+            <select id="dve-f-type">
+              <option value="sheetsExist">sheetsExist</option>
+              <option value="sheetHasColumns">sheetHasColumns</option>
+            </select>
+          </div>
+          <div>
+            <label>ID (optional)</label>
+            <input type="text" id="dve-f-id">
+          </div>
+          <div>
+            <label>Level</label>
+            <select id="dve-f-level">
+              <option value="">(node default)</option>
+              <option value="info">info</option>
+              <option value="warning">warning</option>
+              <option value="error">error</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label>Description</label>
+          <input type="text" id="dve-f-desc">
+        </div>
+
+        <div id="dve-row-sheet" class="form-row">
+          <label>Sheet (for sheetHasColumns)</label>
+          <input type="text" id="dve-f-sheet" placeholder="Layout">
+        </div>
+
+        <div id="dve-row-reqSheets" class="form-row">
+          <label>Required sheets (comma)</label>
+          <input type="text" id="dve-f-reqSheets" placeholder="SWIG, Layout, Tarch">
+        </div>
+
+        <div id="dve-row-reqCols" class="form-row">
+          <label>Required columns (comma)</label>
+          <input type="text" id="dve-f-reqCols" placeholder="Project, Layout">
+        </div>
+
+        <fieldset style="margin-top:8px">
+          <legend>Condition (optional)</legend>
+          <div class="form-row inline">
+            <div>
+              <label>attribute</label>
+              <input type="text" id="dve-f-cond-attr" placeholder="TM">
+            </div>
+            <div>
+              <label>operator</label>
+              <select id="dve-f-cond-op">
+                <option value="==">==</option>
+                <option value="!=">!=</option>
+                <option value="contains">contains</option>
+                <option value="!contains">!contains</option>
+                <option value="regex">regex</option>
+                <option value="isEmpty">isEmpty</option>
+                <option value="!isEmpty">!isEmpty</option>
+              </select>
+            </div>
+            <div style="flex:2">
+              <label>rhs</label>
+              <input type="text" id="dve-f-cond-rhs">
+              <input type="hidden" id="dve-f-cond-rhsType">
+            </div>
+          </div>
+        </fieldset>
+      </div>
+    `).appendTo("body").dialog({
+      modal:true,
+      width: Math.floor($(window).width()*0.85),
+      height: Math.floor($(window).height()*0.85),
+      title: isNew? "Add rule" : "Edit rule",
+      buttons:[
+        { text:"Cancel", click(){ $(this).dialog("destroy").remove(); } },
+        { text:"Save", class:"primary", click(){
+            const t = $("#dve-f-type").val();
+            const out = {
+              type: t,
+              id:   $("#dve-f-id").val().trim() || undefined,
+              description: $("#dve-f-desc").val().trim(),
+              level: $("#dve-f-level").val() || undefined
+            };
+
+            const attr = $("#dve-f-cond-attr").val().trim();
+            const op   = $("#dve-f-cond-op").val();
+            const rhsT = $("#dve-f-cond-rhsType").val();
+            const rhsV = $("#dve-f-cond-rhs").typedInput('value');
+            if (attr || op==="isEmpty" || op==="!isEmpty"){
+              const leaf = { attribute:attr, operator:op };
+              if (!["isEmpty","!isEmpty"].includes(op)) { leaf.rhsType=rhsT; leaf.value=rhsV; }
+              out.conditions = { and:[leaf] };
+            }
+
+            if (t==="sheetsExist"){
+              out.requiredSheets = csvToArr($("#dve-f-reqSheets").val());
+              if (!out.requiredSheets.length){ $("#dve-f-reqSheets").addClass("error-field"); return; }
+            }else{
+              out.sheet = $("#dve-f-sheet").val().trim();
+              out.requiredColumns = csvToArr($("#dve-f-reqCols").val());
+              if (!out.sheet){ $("#dve-f-sheet").addClass("error-field"); return; }
+              if (!out.requiredColumns.length){ $("#dve-f-reqCols").addClass("error-field"); return; }
+            }
+
+            if (isNew) rules.push(out); else rules[index] = out;
+            renderRules($tbody, rules);
+            $(this).dialog("destroy").remove();
+        }}
+      ],
+      close(){ $(this).remove(); }
+    });
+
+    // init fields
+    $("#dve-f-type").val(current.type);
+    $("#dve-f-id").val(current.id || "");
+    $("#dve-f-desc").val(current.description || "");
+    $("#dve-f-level").val(current.level || "");
+    $("#dve-f-sheet").val(current.sheet || "");
+    $("#dve-f-reqSheets").val(arrToCsv(current.requiredSheets));
+    $("#dve-f-reqCols").val(arrToCsv(current.requiredColumns));
+    $("#dve-f-cond-op").val(current?.conditions?.and?.[0]?.operator || "==");
+    $("#dve-f-cond-attr").val(current?.conditions?.and?.[0]?.attribute || "");
+    $("#dve-f-cond-rhs").typedInput({
+      default:'str',
+      types:['str','num','bool','msg','flow','global','env','jsonata'],
+      typeField: $("#dve-f-cond-rhsType")
+    });
+    $("#dve-f-cond-rhs").typedInput('type', current?.conditions?.and?.[0]?.rhsType || "str");
+    $("#dve-f-cond-rhs").typedInput('value', current?.conditions?.and?.[0]?.value ?? "");
+
+    const toggle = ()=>{
+      const t = $("#dve-f-type").val();
+      $("#dve-row-sheet, #dve-row-reqCols").toggle(t==="sheetHasColumns");
+      $("#dve-row-reqSheets").toggle(t==="sheetsExist");
+    };
+    $("#dve-f-type").on("change", toggle); toggle();
+  }
+
+  function ajaxLoad(pathStr){
+    return $.getJSON("data-validation-engine/config", { path: pathStr });
+  }
+  function ajaxSave(pathStr, rules){
+    return $.ajax({
+      url:"data-validation-engine/config",
+      method:"POST",
+      data: JSON.stringify({ path:pathStr, rules }),
+      contentType:"application/json"
+    });
+  }
+
+  RED.nodes.registerType(NODE_TYPE,{
+    category:'function',
+    color:'#C6E2FF',
+    icon:'font-awesome/fa-check-square',
+    paletteLabel:'data-validation',
+    defaults:{
+      name:{value:""},
+      useConfigFile:{value:false},
+      configPath:{value:""},
+      lockToFile:{value:false},
+      watchFile:{value:false},
+      sourceScope:{value:"msg"},
+      sourcePath:{value:"data"},
+      defaultLevel:{value:"info"},
+      rules:{value:[]}
+    },
+    inputs:1, outputs:1,
+    label(){ return this.name || "data-validation-engine"; },
+
+    oneditprepare: function(){
+      const self = this;
+
+      $("#node-input-sourcePath").typedInput({
+        default:'msg',
+        types:['msg','flow','global'],
+        typeField: $("#node-input-sourceScope")
+      });
+
+      let rules = Array.isArray(self.rules) ? clone(self.rules) : [];
+      const $tbody = $("#dve-rules tbody");
+      renderRules($tbody, rules);
+
+      $("#dve-add-rule").on("click",()=> openRuleDialog($tbody, rules, null));
+
+      // Edit JSON
+      $("#dve-edit-json").on("click", ()=>{
+        const $dlg = $(`
+          <div>
+            <textarea id="dve-json-area" style="width:100%;height:calc(80vh - 100px);box-sizing:border-box;font-family:monospace"></textarea>
+          </div>
+        `).appendTo("body").dialog({
+          modal:true,
+          width: Math.floor($(window).width()*0.85),
+          height: Math.floor($(window).height()*0.85),
+          title: "Rules JSON",
+          buttons:[
+            { text:"Cancel", click(){ $(this).dialog("destroy").remove(); } },
+            { text:"Apply", class:"primary", click(){
+                try{
+                  const arr = JSON.parse($("#dve-json-area").val());
+                  if (!Array.isArray(arr)) throw new Error("Root must be an array");
+                  rules = arr;
+                  renderRules($tbody, rules);
+                  $(this).dialog("destroy").remove();
+                }catch(e){ RED.notify(`JSON parse error: ${e.message}`, {type:"error"}); }
+            }}
+          ],
+          close(){ $(this).remove(); }
+        });
+        $("#dve-json-area").val(JSON.stringify(rules, null, 2));
+      });
+
+      // config block enable/disable
+      const syncCfg = ()=>{
+        const use = $("#node-input-useConfigFile").is(":checked");
+        const locked = $("#node-input-lockToFile").is(":checked");
+        $("#node-input-configPath").prop("disabled", !use);
+        $("#dve-btn-load,#dve-btn-save,#node-input-lockToFile,#node-input-watchFile").prop("disabled", !use);
+        const disabled = use && locked;
+        $("#dve-rules").toggleClass("nr-disabled", disabled);
+        $("#dve-add-rule,#dve-edit-json").prop("disabled", disabled);
+      };
+      $("#node-input-useConfigFile,#node-input-lockToFile").on("change", syncCfg);
+      syncCfg();
+
+      // Load/Save
+      $("#dve-btn-load").on("click", async ()=>{
+        const p = $("#node-input-configPath").val().trim();
+        if (!p || !/\.json$/i.test(p)){ $("#node-input-configPath").addClass("error-field"); return; }
+        $("#node-input-configPath").removeClass("error-field");
+        try{
+          const res = await ajaxLoad(p);
+          rules = Array.isArray(res.rules) ? res.rules : [];
+          renderRules($tbody, rules);
+          RED.notify(`Loaded ${rules.length} rule(s).`, {type:"success"});
+        }catch(e){ RED.notify(e?.responseJSON?.error || "Load failed", {type:"error"}); }
+      });
+
+      $("#dve-btn-save").on("click", async ()=>{
+        const p = $("#node-input-configPath").val().trim();
+        if (!p || !/\.json$/i.test(p)){ $("#node-input-configPath").addClass("error-field"); return; }
+        $("#node-input-configPath").removeClass("error-field");
+        try{
+          await ajaxSave(p, rules);
+          RED.notify("Rules saved.", {type:"success"});
+        }catch(e){ RED.notify(e?.responseJSON?.error || "Save failed", {type:"error"}); }
+      });
+
+      this._collectRules = ()=> rules;
+    },
+
+    oneditsave: function(){
+      this.rules = this._collectRules ? this._collectRules() : [];
+    }
+  });
+})();
+</script>
+
+<script type="text/x-red" data-template-name="data-validation-engine">
+  <div class="dve compact">
+    <div class="form-row">
+      <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+      <input type="text" id="node-input-name" placeholder="data-validation-engine">
+    </div>
+
+    <div class="form-row">
+      <label><i class="fa fa-cog"></i> Config file <span class="muted">(optional)</span></label>
+      <div class="inline">
+        <label style="flex:0 0 auto"><input type="checkbox" id="node-input-useConfigFile"> Use config file</label>
+        <input type="text" id="node-input-configPath" placeholder="configs/validation-rules.json">
+      </div>
+      <div class="toolbar">
+        <button class="red-ui-button" id="dve-btn-load"><i class="fa fa-upload"></i> Load from file</button>
+        <button class="red-ui-button" id="dve-btn-save"><i class="fa fa-save"></i> Save to file</button>
+        <span class="muted">Relative to <b>userDir</b>. Only <code>.json</code> files are allowed.</span>
+        <span class="spacer"></span>
+        <label style="flex:0 0 auto"><input type="checkbox" id="node-input-lockToFile"> Lock to file</label>
+        <label style="flex:0 0 auto"><input type="checkbox" id="node-input-watchFile"> Watch</label>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <label><i class="fa fa-sign-in"></i> Input</label>
+      <div class="inline">
+        <input type="text" id="node-input-sourcePath" placeholder="data">
+        <input type="hidden" id="node-input-sourceScope">
+      </div>
+    </div>
+
+    <div class="form-row">
+      <label for="node-input-defaultLevel"><i class="fa fa-bell"></i> Default level</label>
+      <select id="node-input-defaultLevel">
+        <option value="info">info</option>
+        <option value="warning">warning</option>
+        <option value="error">error</option>
+      </select>
+    </div>
+
+    <div class="form-row">
+      <label><i class="fa fa-list"></i> Rules</label>
+      <table id="dve-rules">
+        <thead>
+          <tr>
+            <th style="width:140px">ID</th>
+            <th style="width:140px">Type</th>
+            <th style="width:180px">Sheet</th>
+            <th>Required (sheets/columns)</th>
+            <th style="width:120px">Level</th>
+            <th>Description</th>
+            <th style="width:120px" class="right">Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div class="toolbar">
+        <button class="red-ui-button" id="dve-add-rule"><i class="fa fa-plus"></i> Add rule</button>
+        <button class="red-ui-button" id="dve-edit-json"><i class="fa fa-code"></i> Edit JSON</button>
+        <span class="muted">Types supported: <b>sheetsExist</b>, <b>sheetHasColumns</b>.</span>
+      </div>
+    </div>
+  </div>
+</script>
+
+<script type="text/x-red" data-help-name="data-validation-engine">
+  <p><b>Data Validation Engine</b> — validate workbooks using declarative rules.</p>
+  <ul>
+    <li><b>sheetsExist</b>: verify required sheet names exist & are non-empty.</li>
+    <li><b>sheetHasColumns</b>: check a sheet's first-row shape exposes the required columns (dot paths).</li>
+  </ul>
+  <p>Use the Config file block to load/save rules under <code>userDir</code>. “Lock to file” disables the editor and uses the file at runtime; “Watch” hot-reloads after deploy.</p>
+</script>
