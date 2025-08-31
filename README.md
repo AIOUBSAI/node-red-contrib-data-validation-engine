@@ -38,9 +38,8 @@ Restart Node-RED. You’ll find the node under **function** as **data-validation
 
      ```json
      {
-       "SWIG":[{...}],
-       "Layout":[{ "Project":"P1", "Layout":"L1" }],
-       "Tarch":[{ "model":"M1", "Instances": [{ "User Code Instance Name": "U1" }] }]
+       "NAME":[{...}],
+       "PRICE":[{ "Project":"P1", "Layout":"L1" }]
      }
      ```
 3. Add rules (dialog) or **Load from file**.
@@ -83,7 +82,7 @@ Checks that each listed sheet exists and is non-empty.
   "type": "sheetsExist",
   "id": "RULE_SHEETS",
   "description": "Core sheets exist",
-  "requiredSheets": ["SWIG","Layout","Tarch"],
+  "requiredSheets": ["NAME","PRICE"],
   "level": "error",
 
   "conditions": {
@@ -102,9 +101,9 @@ Checks headers/paths on the *shape* of the sheet (first object for arrays; objec
 {
   "type": "sheetHasColumns",
   "id": "RULE_LAYOUT_COLS",
-  "description": "Layout must have Project, Layout",
+  "description": "NAME must have name, grade",
   "sheet": "Layout",
-  "requiredColumns": ["Project","Layout"],
+  "requiredColumns": ["name","grade"],
   "level": "error",
 
   "conditions": {
@@ -138,8 +137,8 @@ msg.validation = {
       "id": "RULE_LAYOUT_COLS",
       "type": "sheetHasColumns",
       "level": "error|warning|info",
-      "message": "Missing column 'Layout' in 'Layout'.",
-      "description": "Layout must have Project, Layout"
+      "message": "Missing column 'name' in 'NAME'.",
+      "description": "NAME must have name, grade"
     }
   ],
   "counts": { "info": 6, "warning": 1, "error": 2, "total": 9 }
@@ -159,14 +158,14 @@ If you prefer to keep rules in a file:
   {
     "type": "sheetsExist",
     "description": "Core sheets exist",
-    "requiredSheets": ["SWIG","Layout","Tarch"],
+    "requiredSheets": ["NAME","PRICE"],
     "level": "error"
   },
   {
     "type": "sheetHasColumns",
-    "description": "Layout must have Project, Layout",
-    "sheet": "Layout",
-    "requiredColumns": ["Project","Layout"],
+    "description": "NAME must have name, grade",
+    "sheet": "NAME",
+    "requiredColumns": ["name","grade"],
     "level": "error"
   }
 ]
