@@ -225,7 +225,7 @@
         </fieldset>
       </div>
     `).appendTo("body").dialog({
-      modal:true,
+      modal:false,
       width: Math.floor($(window).width()*0.85),
       height: Math.floor($(window).height()*0.85),
       title: isNew? "Add rule" : "Edit rule",
@@ -487,3 +487,4 @@
   </ul>
   <p>Use the Config file block to load/save rules under <code>userDir</code>. “Lock to file” disables the editor and uses the file at runtime; “Watch” hot-reloads after deploy.</p>
 </script>
+
