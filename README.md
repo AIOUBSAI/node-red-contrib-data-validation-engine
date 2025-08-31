@@ -202,4 +202,4 @@ MIT @AIOUB SAI
 
 ## Changelog
 
-* **0.1.0** – First public release: sheetsExist & sheetHasColumns, UI builder, config file support, typed conditions.
+* **0.2.0** – First public release: sheetsExist & sheetHasColumns, UI builder, config file support, typed conditions.
