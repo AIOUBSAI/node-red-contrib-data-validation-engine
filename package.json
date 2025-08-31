@@ -1,6 +1,6 @@
 {
   "name": "node-red-contrib-data-validation-engine",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A simple rule-based data validation node for Node-RED (sheetsExist, sheetHasColumns) with UI builder and JSON config file support.",
   "keywords": [
     "node-red",
@@ -41,3 +41,4 @@
     "access": "public"
   }
 }
+
