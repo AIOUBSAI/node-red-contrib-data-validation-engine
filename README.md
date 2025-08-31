@@ -197,9 +197,3 @@ If you prefer to keep rules in a file:
 ## License
 
 MIT @AIOUB SAI
-
----
-
-## Changelog
-
-* **0.2.0** – First public release: sheetsExist & sheetHasColumns, UI builder, config file support, typed conditions.
